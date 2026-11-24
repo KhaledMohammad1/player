@@ -7,7 +7,6 @@ on:
     paths:
       - "lib/**"
       - ".github/workflows/android.yml"
-      - "setup_android.sh"
 
 permissions:
   contents: read
@@ -73,19 +72,25 @@ jobs:
             exit 1
           fi
           echo "Verified: no jcenter() remains in video_thumbnail Gradle files."
-          # This old plugin pins compileSdk 33, but its AndroidX dependencies require 34+.
-          plugin_gradle="$(find "$HOME/.pub-cache" -type f -path '*video_thumbnail*/android/build.gradle' -print -quit)"
+          # Patch the actual plugin module, not the example app's Gradle file.
+          plugin_gradle="$(find "$HOME/.pub-cache/hosted/pub.dev" -type f -path '*/video_thumbnail-*/android/build.gradle' ! -path '*/example/*' -print -quit)"
           if [[ -z "$plugin_gradle" ]]; then
-            echo "ERROR: cannot locate video_thumbnail build.gradle for compileSdk patch"
+            echo "ERROR: video_thumbnail Android build.gradle not found"
             exit 1
           fi
-          sed -i -E 's/(compileSdkVersion[[:space:]]+)33/\135/; s/(compileSdk[[:space:]]*=[[:space:]]*)33/\135/' "$plugin_gradle"
-          echo "Patched video_thumbnail compileSdk setting:"
-          grep -nE 'compileSdk(Version)?' "$plugin_gradle" || true
-          if grep -Eq 'compileSdkVersion[[:space:]]+33|compileSdk[[:space:]]*=[[:space:]]*33' "$plugin_gradle"; then
-            echo "ERROR: video_thumbnail compileSdk is still 33"
+          echo "Patching plugin module: $plugin_gradle"
+          sed -i 's/jcenter()/mavenCentral()/g' "$plugin_gradle"
+          sed -i -E 's/compileSdkVersion[[:space:]]+33/compileSdkVersion 35/g; s/compileSdk[[:space:]]*=[[:space:]]*33/compileSdk = 35/g' "$plugin_gradle"
+          grep -nE 'compileSdk(Version)?' "$plugin_gradle"
+          if ! grep -Eq 'compileSdkVersion[[:space:]]+35|compileSdk[[:space:]]*=[[:space:]]*35' "$plugin_gradle"; then
+            echo "ERROR: failed to update video_thumbnail compileSdk to 35"
             exit 1
           fi
+          if grep -q 'jcenter()' "$plugin_gradle"; then
+            echo "ERROR: obsolete jcenter() remains in video_thumbnail"
+            exit 1
+          fi
+          echo "Verified video_thumbnail uses compileSdk 35 and mavenCentral()."
 
       - name: Build ARM APKs
         working-directory: app
