@@ -12,11 +12,15 @@ cd "$APP_DIR"
 flutter pub add flutter_riverpod media_kit media_kit_video media_kit_libs_android_video path_provider path file_picker:^10.0.0 audio_service audio_session liquid_design:^0.4.1 audio_metadata_reader video_thumbnail
 flutter pub get
 
-# video_thumbnail 0.5.6 still calls the removed jcenter() repository.
-PLUGIN_GRADLE="$(find "$HOME/.pub-cache/hosted/pub.dev" -path '*/video_thumbnail-*/android/build.gradle' -print -quit)"
+# Patch the actual video_thumbnail Android module (not its example app).
+PLUGIN_GRADLE="$(find "$HOME/.pub-cache/hosted/pub.dev" -type f -path '*/video_thumbnail-*/android/build.gradle' ! -path '*/example/*' -print -quit)"
 if [ -n "$PLUGIN_GRADLE" ]; then
-  sed -i 's/jcenter()/google(); mavenCentral()/g' "$PLUGIN_GRADLE"
-  sed -i -E 's/(compileSdkVersion[[:space:]]+)33/\135/; s/(compileSdk[[:space:]]*=[[:space:]]*)33/\135/' "$PLUGIN_GRADLE"
+  sed -i 's/jcenter()/mavenCentral()/g' "$PLUGIN_GRADLE"
+  sed -i -E 's/compileSdkVersion[[:space:]]+33/compileSdkVersion 35/g; s/compileSdk[[:space:]]*=[[:space:]]*33/compileSdk = 35/g' "$PLUGIN_GRADLE"
+  grep -nE 'compileSdk(Version)?' "$PLUGIN_GRADLE"
+else
+  echo "ERROR: video_thumbnail Android build.gradle not found" >&2
+  exit 1
 fi
 
 # Build separate ARM packages (32-bit is included for compatible Redmi A3 firmware).
