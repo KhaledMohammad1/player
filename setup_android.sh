@@ -16,6 +16,7 @@ flutter pub get
 PLUGIN_GRADLE="$(find "$HOME/.pub-cache/hosted/pub.dev" -path '*/video_thumbnail-*/android/build.gradle' -print -quit)"
 if [ -n "$PLUGIN_GRADLE" ]; then
   sed -i 's/jcenter()/google(); mavenCentral()/g' "$PLUGIN_GRADLE"
+  sed -i -E 's/(compileSdkVersion[[:space:]]+)33/\135/; s/(compileSdk[[:space:]]*=[[:space:]]*)33/\135/' "$PLUGIN_GRADLE"
 fi
 
 # Build separate ARM packages (32-bit is included for compatible Redmi A3 firmware).
