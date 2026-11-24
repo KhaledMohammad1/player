@@ -73,6 +73,19 @@ jobs:
             exit 1
           fi
           echo "Verified: no jcenter() remains in video_thumbnail Gradle files."
+          # This old plugin pins compileSdk 33, but its AndroidX dependencies require 34+.
+          plugin_gradle="$(find "$HOME/.pub-cache" -type f -path '*video_thumbnail*/android/build.gradle' -print -quit)"
+          if [[ -z "$plugin_gradle" ]]; then
+            echo "ERROR: cannot locate video_thumbnail build.gradle for compileSdk patch"
+            exit 1
+          fi
+          sed -i -E 's/(compileSdkVersion[[:space:]]+)33/\135/; s/(compileSdk[[:space:]]*=[[:space:]]*)33/\135/' "$plugin_gradle"
+          echo "Patched video_thumbnail compileSdk setting:"
+          grep -nE 'compileSdk(Version)?' "$plugin_gradle" || true
+          if grep -Eq 'compileSdkVersion[[:space:]]+33|compileSdk[[:space:]]*=[[:space:]]*33' "$plugin_gradle"; then
+            echo "ERROR: video_thumbnail compileSdk is still 33"
+            exit 1
+          fi
 
       - name: Build ARM APKs
         working-directory: app
