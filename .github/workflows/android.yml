@@ -44,6 +44,16 @@ jobs:
           flutter pub add flutter_riverpod media_kit media_kit_video media_kit_libs_android_video path_provider path file_picker:^10.0.0 audio_service audio_session liquid_design:^0.4.1 audio_metadata_reader video_thumbnail
           flutter pub get
 
+      - name: Patch legacy video_thumbnail Android repository
+        working-directory: app
+        run: |
+          PLUGIN_GRADLE="$(find "$HOME/.pub-cache/hosted/pub.dev" -path '*/video_thumbnail-*/android/build.gradle' -print -quit)"
+          if [ -z "$PLUGIN_GRADLE" ]; then
+            echo "video_thumbnail Gradle file not found"
+            exit 1
+          fi
+          sed -i 's/jcenter()/google(); mavenCentral()/g' "$PLUGIN_GRADLE"
+
       - name: Build ARM APKs
         working-directory: app
         run: flutter build apk --release --split-per-abi
