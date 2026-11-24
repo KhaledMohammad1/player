@@ -46,13 +46,33 @@ jobs:
 
       - name: Patch legacy video_thumbnail Android repository
         working-directory: app
+        shell: bash
         run: |
-          PLUGIN_GRADLE="$(find "$HOME/.pub-cache/hosted/pub.dev" -path '*/video_thumbnail-*/android/build.gradle' -print -quit)"
-          if [ -z "$PLUGIN_GRADLE" ]; then
-            echo "video_thumbnail Gradle file not found"
+          set -euo pipefail
+          echo "Searching Flutter package cache for obsolete jcenter() declarations..."
+          mapfile -t gradle_files < <(grep -RIl --include='build.gradle' 'jcenter()' "$HOME/.pub-cache" 2>/dev/null || true)
+          patched=0
+          for file in "${gradle_files[@]}"; do
+            if [[ "$file" == *video_thumbnail* ]]; then
+              echo "Patching $file"
+              sed -i 's/jcenter()/mavenCentral()/g' "$file"
+              patched=$((patched + 1))
+            fi
+          done
+          if [[ "$patched" -eq 0 ]]; then
+            plugin_file="$(find "$HOME/.pub-cache" -type f -path '*video_thumbnail*/android/build.gradle' -print -quit)"
+            if [[ -z "$plugin_file" ]]; then
+              echo "ERROR: video_thumbnail Gradle file not found"
+              exit 1
+            fi
+            echo "Patching exact plugin file: $plugin_file"
+            sed -i 's/jcenter()/mavenCentral()/g' "$plugin_file"
+          fi
+          if grep -RIn --include='build.gradle' 'jcenter()' "$HOME/.pub-cache" 2>/dev/null | grep 'video_thumbnail'; then
+            echo "ERROR: obsolete jcenter() declaration remains"
             exit 1
           fi
-          sed -i 's/jcenter()/google(); mavenCentral()/g' "$PLUGIN_GRADLE"
+          echo "Verified: no jcenter() remains in video_thumbnail Gradle files."
 
       - name: Build ARM APKs
         working-directory: app
